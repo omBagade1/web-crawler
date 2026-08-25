@@ -1,3 +1,5 @@
+const { JSDOM } = require('jsdom');
+
 
 const isValidUrl = (url) => {
   try {
@@ -21,6 +23,26 @@ const normalizeUrl = (url) => {
   } 
 } ;
 
+const getUrlsFromHtml = (htmlBody, baseUrl) => {
+  const urls = [];
+  const dom = new JSDOM(htmlBody);
+  const linkElements = dom.window.document.querySelectorAll('a');
+  linkElements.forEach((link) => {
+     if(link.href.startsWith('/')) {
+      urls.push(new URL(link.href, baseUrl).href);
+     } else {
+      urls.push(link.href);
+     }
+  });
 
-module.exports = { isValidUrl, normalizeUrl };
+  return urls;
+};
+
+
+
+module.exports = {
+  isValidUrl,
+  normalizeUrl,
+  getUrlsFromHtml
+};
    
