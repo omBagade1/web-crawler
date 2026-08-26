@@ -28,7 +28,10 @@ const getUrlsFromHtml = (htmlBody, baseUrl) => {
   const dom = new JSDOM(htmlBody);
   const linkElements = dom.window.document.querySelectorAll('a');
   linkElements.forEach((link) => {
-     if(link.href.startsWith('/')) {
+    if(link.href.startsWith('about:') || link.href.startsWith('javascript:')) {
+      //skip these links  
+    }
+     else if(link.href.startsWith('/')) {
       urls.push(new URL(link.href, baseUrl).href);
      } else {
       urls.push(link.href);
@@ -39,10 +42,28 @@ const getUrlsFromHtml = (htmlBody, baseUrl) => {
 };
 
 
+async function geturlWrapper(url) {
+  if (!isValidUrl(url)) {
+    throw new Error('Invalid URL');
+  }
+  else{
+    const response = await fetch(url);
+    const htmlBody = await response.text();
+
+    // Resolve relative links against a full absolute URL.
+    const baseUrl = response.url || url;
+    const urls = getUrlsFromHtml(htmlBody, baseUrl);
+    console.log(`Extracted URLs: ${urls}`);
+    return urls;  
+  }
+};
+
+
 
 module.exports = {
   isValidUrl,
   normalizeUrl,
-  getUrlsFromHtml
+  getUrlsFromHtml,
+  geturlWrapper
 };
    

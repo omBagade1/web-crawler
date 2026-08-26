@@ -1,31 +1,31 @@
-const { isValidUrl, normalizeUrl, getUrlsFromHtml } = require('./crawler');
+const express = require('express');
+const app = express();
 
 
-function main() {
-  const url = 'https://en.wikipedia.org/wiki/Lionel_Messi';
-  console.log(url);
-  if (!isValidUrl(url)) {
-    console.error('Invalid URL');
-    return;
+app.get('/', (req, res) => {
+  res.send('Welcome to the web crawler!');
+});
+
+app.get('/crawl', (req, res) => {
+  const url = req.query.url;  
+  if (!url) {
+    console.log('URL parameter is required');
+    return res.status(400).send('URL parameter is required');
   }
   else {
-    console.log('Valid URL');
+    const { geturlWrapper } = require('./crawler.js');
+    geturlWrapper(url)
+      .then(urls => {
+        res.json({ urls });
+      })
+      .catch(error => {
+        console.error(`Error occurred while crawling: ${error.message}`);
+        res.status(500).send(`Error: ${error.message}`);
+      });
   }
+});
 
-  console.log('Starting with normalized URL:', normalizeUrl(url));
-  
-  async function fetchAndExtractUrls(url) {
-    try {
-      const response = await fetch(url);
-      const htmlBody = await response.text();
-      const extractedUrls = getUrlsFromHtml(htmlBody, url);
-      console.log('Extracted URLs:', extractedUrls);
-    } catch (error) {
-      console.error('Error fetching the URL:', error);
-    }
-  }
 
-  fetchAndExtractUrls(url);
-}
-
-main();
+app.listen(3000, () => {
+  console.log('Server is running on port 3000');
+});
