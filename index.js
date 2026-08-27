@@ -13,14 +13,17 @@ app.get('/crawl', (req, res) => {
     return res.status(400).send('URL parameter is required');
   }
   else {
-    const { geturlWrapper } = require('./crawler.js');
-    geturlWrapper(url)
+    const { crawl } = require('./crawler.js');
+    const visitedUrls = new Set();
+    crawl(url, 2, visitedUrls)
       .then(urls => {
-        res.json({ urls });
+        res.json({ urls: [...urls] });
       })
       .catch(error => {
         console.error(`Error occurred while crawling: ${error.message}`);
-        res.status(500).send(`Error: ${error.message}`);
+        if (!res.headersSent) {
+          res.status(500).send(`Error: ${error.message}`);
+        }
       });
   }
 });

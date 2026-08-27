@@ -1,6 +1,7 @@
 const { JSDOM } = require('jsdom');
 
 
+
 const isValidUrl = (url) => {
   try {
     new URL(url); 
@@ -28,13 +29,19 @@ const getUrlsFromHtml = (htmlBody, baseUrl) => {
   const dom = new JSDOM(htmlBody);
   const linkElements = dom.window.document.querySelectorAll('a');
   linkElements.forEach((link) => {
-    if(link.href.startsWith('about:') || link.href.startsWith('javascript:')) {
-      //skip these links  
+    const href = link.getAttribute('href');
+    if (!href) {
+      return;
     }
-     else if(link.href.startsWith('/')) {
-      urls.push(new URL(link.href, baseUrl).href);
-     } else {
-      urls.push(link.href);
+
+    try {
+      const resolvedUrl = new URL(href, baseUrl);
+      if (resolvedUrl.protocol === 'http:' || resolvedUrl.protocol === 'https:') {
+        resolvedUrl.hash = '';
+        urls.push(resolvedUrl.href);
+      }
+    } catch (e) {
+      // Ignore malformed links instead of aborting the crawl.
      }
   });
 
@@ -58,12 +65,33 @@ async function geturlWrapper(url) {
   }
 };
 
+async function crawl(url, depth, visitedUrls) {
+  if (!isValidUrl(url)) {
+    throw new Error('Invalid URL');
+  }
+
+  if (depth === 0 || visitedUrls.has(url)) {
+    return visitedUrls;
+  }
+  else{ 
+    visitedUrls.add(url);
+    const urls = await geturlWrapper(url);
+    depth--;
+    for (const nextUrl of urls) {
+      await crawl(nextUrl, depth, visitedUrls);
+    }
+    return visitedUrls;
+  }
+}
+
+    
 
 
 module.exports = {
   isValidUrl,
   normalizeUrl,
   getUrlsFromHtml,
-  geturlWrapper
+  geturlWrapper,
+  crawl
 };
    

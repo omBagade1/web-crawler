@@ -2,6 +2,14 @@
 2.URL's 
   learned about the URL oobject in js 
   also how to parse and genral url terms 
-3.jsDOM 
+3.jsDOM  
+  fetching of html and all the anchor tags with actual and relitive links 
+4.actual brainstorming 
+   our crawls are only 1st dgree crawl 
+  PROBLEM 1 :
+    we have a list of urls and a fuction that can crawl a single page we somehow needs to crawl till nth depth and store unique urls 
+
+  APPROCH:
+    
     
    
