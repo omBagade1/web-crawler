@@ -49,12 +49,17 @@ const getUrlsFromHtml = (htmlBody, baseUrl) => {
 };
 
 
-async function geturlWrapper(url) {
+async function getUrlsWrapper(url) {
   if (!isValidUrl(url)) {
     throw new Error('Invalid URL');
   }
   else{
-    const response = await fetch(url);
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 5000); // 5 second timeout
+
+    const response = await fetch(url, { signal: controller.signal });
+    clearTimeout(timeout);
+
     const htmlBody = await response.text();
 
     // Resolve relative links against a full absolute URL.
@@ -64,6 +69,8 @@ async function geturlWrapper(url) {
     return urls;  
   }
 };
+
+const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
 async function crawl(url, depth, visitedUrls) {
   if (!isValidUrl(url)) {
@@ -75,9 +82,10 @@ async function crawl(url, depth, visitedUrls) {
   }
   else{ 
     visitedUrls.add(url);
-    const urls = await geturlWrapper(url);
+    const urls = await getUrlsWrapper(url);
     depth--;
     for (const nextUrl of urls) {
+      await delay(500); // 500ms delay between requests
       await crawl(nextUrl, depth, visitedUrls);
     }
     return visitedUrls;
@@ -91,7 +99,6 @@ module.exports = {
   isValidUrl,
   normalizeUrl,
   getUrlsFromHtml,
-  geturlWrapper,
+  getUrlsWrapper,
   crawl
 };
-   

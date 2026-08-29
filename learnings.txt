@@ -10,9 +10,8 @@
     we have a list of urls and a fuction that can crawl a single page we somehow needs to crawl till nth depth and store unique urls 
 
   APPROCH:
-    
+
+  created a function that crawls till n depth for now 2 but its time consuming and slow 
 
 
 
-sry 
-   
