@@ -1,5 +1,5 @@
 const { JSDOM } = require('jsdom');
-
+const { canFetch, getCrawlDelay } = require('./robots.js');
 
 
 const isValidUrl = (url) => {
@@ -54,11 +54,31 @@ async function getUrlsWrapper(url) {
     throw new Error('Invalid URL');
   }
   else{
+    const allowed = await canFetch(url);
+    if (!allowed) {
+      console.log(`Blocked by robots.txt: ${url}`);
+      return [];
+    }
+
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 5000); // 5 second timeout
 
-    const response = await fetch(url, { signal: controller.signal });
+    const response = await fetch(url, { 
+      signal: controller.signal,
+      headers: { 'User-Agent': 'WebCrawler/1.0' }
+    });
     clearTimeout(timeout);
+
+    if (!response.ok) {
+      console.log(`HTTP ${response.status} for ${url}`);
+      return [];
+    }
+
+    const contentType = response.headers.get('content-type') || '';
+    if (!contentType.includes('text/html')) {
+      console.log(`Skipping non-HTML: ${contentType} for ${url}`);
+      return [];
+    }
 
     const htmlBody = await response.text();
 
@@ -84,8 +104,11 @@ async function crawl(url, depth, visitedUrls) {
     visitedUrls.add(url);
     const urls = await getUrlsWrapper(url);
     depth--;
+    
+    const crawlDelay = await getCrawlDelay(url);
+    
     for (const nextUrl of urls) {
-      await delay(500); // 500ms delay between requests
+      await delay(crawlDelay); // Respect robots.txt crawl-delay
       await crawl(nextUrl, depth, visitedUrls);
     }
     return visitedUrls;

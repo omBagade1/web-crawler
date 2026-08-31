@@ -13,5 +13,11 @@
 
   created a function that crawls till n depth for now 2 but its time consuming and slow 
 
+  PROBLEM 2: just got to know about robot.txt which is set of rules to ascess public data from any of the sites 
+  
+  APPROCH: we will learn about it now 
+  
+  
+
 
 
