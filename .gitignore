@@ -38,6 +38,7 @@ pnpm-debug.log*
 Thumbs.db
 
 # Crawler-generated data
+crawl-state/
 data/
 output/
 downloads/

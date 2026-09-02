@@ -1,4 +1,4 @@
-const { isValidUrl, normalizeUrl, getUrlsFromHtml, crawl, getUrlsWrapper, delay } = require('./crawler');
+const { isValidUrl, normalizeUrl, getUrlsFromHtml, crawl, getUrlsWrapper, delay, CrawlState, generateSitemap, generateCsv, MAX_PAGES, CONCURRENCY } = require('./crawler');
 
 global.fetch = jest.fn();
 jest.mock('./crawler.js', () => {
@@ -9,7 +9,7 @@ jest.mock('./crawler.js', () => {
   };
 });
 
-jest.setTimeout(10000);
+jest.setTimeout(15000);
 
 beforeEach(() => {
   fetch.mockReset();
@@ -41,7 +41,6 @@ test('resturns the normalized version of a URL with uppercase letters', () => {
   let normalizedUrl = 'www.example.com/path/to/page';
   expect(normalizeUrl(url)).toBe(normalizedUrl);
 });
-
 
 test('returns an array of URLs from HTML', () => {
   const htmlBody = `
@@ -77,8 +76,7 @@ test('resolves relative links and ignores non-web links', () => {
   ]);
 });
 
-test('crawl function returns a set of unique URLs (mocked)', async () => {
-  // Mock robots.txt allow all
+test('crawl function returns CrawlState with visited URLs (mocked)', async () => {
   fetch.mockImplementation((url) => {
     if (url.includes('/robots.txt')) {
       return Promise.resolve({
@@ -86,7 +84,6 @@ test('crawl function returns a set of unique URLs (mocked)', async () => {
         text: () => Promise.resolve('User-agent: *\nAllow: /')
       });
     }
-    // Mock HTML response
     return Promise.resolve({
       ok: true,
       headers: new Map([['content-type', 'text/html']]),
@@ -97,12 +94,11 @@ test('crawl function returns a set of unique URLs (mocked)', async () => {
 
   const url = 'https://www.example.com';
   const depth = 1;  
-  const visitedUrls = new Set();
-  const urls = await crawl(url, depth, visitedUrls);
+  const state = await crawl(url, depth, { crawlId: 'test-crawl' });
   
-  expect(urls).toBeInstanceOf(Set);
-  expect(urls.size).toBeGreaterThan(0);
-  expect(urls.has('https://www.example.com')).toBe(true);
+  expect(state).toBeInstanceOf(CrawlState);
+  expect(state.visitedUrls.size).toBeGreaterThan(0);
+  expect(state.visitedUrls.has('www.example.com')).toBe(true);
 });
 
 test('getUrlsWrapper respects robots.txt disallow', async () => {
@@ -158,4 +154,62 @@ test('getUrlsWrapper handles HTTP errors', async () => {
 
   const urls = await getUrlsWrapper('https://www.example.com/missing');
   expect(urls).toEqual([]);
+});
+
+test('CrawlState saves and loads state', async () => {
+  const state = new CrawlState('test-crawl-save');
+  state.addUrl('https://example.com/page1', 2);
+  state.addUrl('https://example.com/page2', 1);
+  state.markVisited('https://example.com/page1', 2, ['page2'], null);
+  
+  await state.save();
+  
+  const loaded = new CrawlState('test-crawl-save');
+  await loaded.load();
+  
+  expect(loaded.visitedUrls.size).toBe(1);
+  expect(loaded.queue.length).toBe(2); // both URLs still in queue (markVisited doesn't remove from queue)
+  expect(loaded.metrics.completed).toBe(1);
+});
+
+test('generateSitemap creates valid XML', () => {
+  const urls = new Map();
+  urls.set('example.com/page1', { url: 'https://example.com/page1', timestamp: Date.now(), error: null });
+  urls.set('example.com/page2', { url: 'https://example.com/page2', timestamp: Date.now(), error: 'failed' });
+  
+  const sitemap = generateSitemap(urls);
+  expect(sitemap).toContain('<?xml version="1.0" encoding="UTF-8"?>');
+  expect(sitemap).toContain('<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">');
+  expect(sitemap).toContain('https://example.com/page1');
+  expect(sitemap).not.toContain('https://example.com/page2');
+});
+
+test('generateCsv creates valid CSV', () => {
+  const urls = new Map();
+  urls.set('example.com/page1', { url: 'https://example.com/page1', depth: 1, links: ['a', 'b'], timestamp: Date.now(), error: null });
+  urls.set('example.com/page2', { url: 'https://example.com/page2', depth: 0, links: [], timestamp: Date.now(), error: 'timeout' });
+  
+  const csv = generateCsv(urls);
+  const lines = csv.split('\n');
+  expect(lines[0]).toContain('"URL"');
+  expect(lines[0]).toContain('"Depth"');
+  expect(lines[0]).toContain('"Status"');
+  expect(lines[1]).toContain('https://example.com/page1');
+  expect(lines[1]).toContain('success');
+  expect(lines[2]).toContain('https://example.com/page2');
+  expect(lines[2]).toContain('failed');
+  expect(lines[2]).toContain('timeout');
+});
+
+test('normalizeUrl handles query parameters and fragments', () => {
+  expect(normalizeUrl('https://example.com/page?foo=bar')).toBe('example.com/page');
+  expect(normalizeUrl('https://example.com/page#section')).toBe('example.com/page');
+  expect(normalizeUrl('https://example.com/page?foo=bar#section')).toBe('example.com/page');
+});
+
+test('CONCURRENCY and MAX_PAGES are exported', () => {
+  expect(typeof CONCURRENCY).toBe('number');
+  expect(typeof MAX_PAGES).toBe('number');
+  expect(CONCURRENCY).toBeGreaterThan(0);
+  expect(MAX_PAGES).toBeGreaterThan(0);
 });

@@ -1,0 +1,28 @@
+version: '3.8'
+
+services:
+  web-crawler:
+    build: .
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+      - LOG_LEVEL=info
+      - CRAWL_CONCURRENCY=5
+      - CRAWL_MAX_RETRIES=3
+      - CRAWL_TIMEOUT=10000
+      - CRAWL_USER_AGENT=WebCrawler/1.0
+      - CRAWL_MAX_PAGES=10000
+      - CRAWL_ALLOWED_DOMAINS=
+      - CRAWL_STATE_DIR=/app/crawl-state
+    volumes:
+      - ./crawl-state:/app/crawl-state
+      - ./logs:/app/logs
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:3000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
